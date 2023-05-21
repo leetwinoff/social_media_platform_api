@@ -23,3 +23,12 @@ class Post(models.Model):
 
     def __str__(self):
         return f"Post by {self.user.username} was created at {self.created_at}"
+
+
+class Like(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Like by {self.user.username} on {self.post.id}"
