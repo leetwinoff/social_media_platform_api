@@ -13,3 +13,13 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+class Post(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    post_image = models.ImageField(upload_to="post_images/")
+    post_description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Post by {self.user.username} was created at {self.created_at}"
