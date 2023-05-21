@@ -1,3 +1,7 @@
 from django.contrib import admin
+from profile_services.models import Profile, Like, Post, Comment
 
-# Register your models here.
+admin.site.register(Profile)
+admin.site.register(Post)
+admin.site.register(Like)
+admin.site.register(Comment)
