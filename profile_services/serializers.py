@@ -17,4 +17,3 @@ class ProfileSerializer(serializers.ModelSerializer):
         user = User.objects.create(**user_data)
         profile = Profile.objects.create(user=user, **validated_data)
         return profile
-
