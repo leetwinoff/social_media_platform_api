@@ -71,6 +71,9 @@ class PostSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+    def delete(self, instance):
+        instance.delete()
+
 
 class PostListSerializer(serializers.ModelSerializer):
     user = UserSerializer(many=True)
