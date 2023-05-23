@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from profile_services.models import Profile, Post, Like
+from profile_services.models import Profile, Post, Like, Comment
 from user.models import User
 from user.serializers import UserSerializer
 
@@ -13,23 +13,23 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ("id", "user", "profile_picture", "bio")
 
     def create(self, validated_data):
-        user_data = validated_data.pop("user")
-        user = User.objects.create(**user_data)
-        profile = Profile.objects.create(user=user, **validated_data)
-        return profile
+        user = self.context["request"].user
+        if Profile.objects.filter(user=user).exists():
+            raise serializers.ValidationError("A profile already exists for this user.")
+        validated_data["user"] = user
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        user_data = validated_data.pop("user")
-        user_serializer = self.fields["user"]
-        user_instance = instance.user
+        user = self.context["request"].user
 
-        user_serializer.update(user_instance, user_data)
-
+        if instance.user != user:
+            raise serializers.ValidationError(
+                "You are not allowed to update this profile."
+            )
         instance.profile_picture = validated_data.get(
             "profile_picture", instance.profile_picture
         )
         instance.bio = validated_data.get("bio", instance.bio)
-
         instance.save()
         return instance
 
@@ -42,12 +42,28 @@ class ProfileListSerializer(serializers.ModelSerializer):
         fields = ("id", "user", "profile_picture", "bio")
 
 
+class CommentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ["id", "user", "content", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        post = self.context["post"]
+        comment = Comment.objects.create(user=user, post=post, **validated_data)
+        return comment
+
+
 class PostSerializer(serializers.ModelSerializer):
     user = UserSerializer()
+    comments = CommentSerializer(many=True)
 
     class Meta:
         model = Post
-        fields = ("user", "post_image", "post_description", "created_at")
+        fields = ("user", "post_image", "post_description", "created_at", "comments")
 
     def create(self, validated_data):
         user_data = validated_data.pop("user")
