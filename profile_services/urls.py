@@ -1,14 +1,18 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import ProfileViewSet, PostViewSet
+from profile_services.views import (
+    ProfileViewSet,
+    PostViewSet,
+    LikeViewSet,
+)
 
 router = DefaultRouter()
 router.register("profile", ProfileViewSet)
 router.register("post", PostViewSet)
+router.register("like", LikeViewSet)
 
 urlpatterns = [
     # Other URL patterns
-    path("", include(router.urls)),
     path("", include(router.urls)),
 ]
 
