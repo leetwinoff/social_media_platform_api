@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from profile_services.models import Profile, Post
+from profile_services.models import Profile, Post, Like
 from user.models import User
 from user.serializers import UserSerializer
 
@@ -43,7 +43,7 @@ class ProfileListSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
-    user = UserSerializer(many=False, read_only=True)
+    user = UserSerializer()
 
     class Meta:
         model = Post
@@ -76,8 +76,17 @@ class PostSerializer(serializers.ModelSerializer):
 
 
 class PostListSerializer(serializers.ModelSerializer):
-    user = UserSerializer(many=True)
+    user = UserSerializer()
 
     class Meta:
         model = Post
         fields = ("user", "post_image", "post_description", "created_at")
+
+
+class LikeSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    post = PostSerializer(read_only=True)
+
+    class Meta:
+        model = Like
+        fields = "__all__"
