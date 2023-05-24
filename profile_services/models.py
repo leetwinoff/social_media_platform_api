@@ -21,6 +21,7 @@ class Profile(models.Model):
         upload_to=profile_image_file_path, null=True, blank=True
     )
     bio = models.TextField(blank=True)
+    posts = models.ManyToManyField("Post", related_name="profiles", blank=True)
 
     def __str__(self):
         return self.user.username
@@ -46,7 +47,7 @@ class Post(models.Model):
 
 class Like(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="posts")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
