@@ -6,11 +6,10 @@ from user.serializers import UserSerializer
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-
     class Meta:
         model = Profile
         fields = ("id", "user", "profile_picture", "bio")
+        read_only_fields = ("id",)
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -106,3 +105,19 @@ class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
         fields = "__all__"
+
+
+class ProfileDetailSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    posts = PostSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Profile
+        fields = (
+            "id",
+            "user",
+            "profile_picture",
+            "bio",
+            "posts",
+        )
+        read_only_fields = ("user.email",)
