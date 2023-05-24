@@ -13,6 +13,7 @@ from profile_services.serializers import (
     PostListSerializer,
     LikeSerializer,
     CommentSerializer,
+    ProfileDetailSerializer,
 )
 
 
@@ -25,6 +26,8 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "list":
             return ProfileListSerializer
+        if self.action == "retrieve":
+            return ProfileDetailSerializer
         return ProfileSerializer
 
     def perform_create(self, serializer):
@@ -39,6 +42,16 @@ class ProfileViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return []
         return super().get_permissions()
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        if instance.user != request.user:
+            return Response(
+                {"detail": "You are not allowed to update this profile."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
 
 
 class PostViewSet(viewsets.ModelViewSet):
