@@ -43,35 +43,80 @@ class ProfileListSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    post_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = Comment
-        fields = ["id", "user", "content", "created_at"]
+        fields = ["id", "user", "post_id", "content", "created_at"]
         read_only_fields = ["id", "created_at"]
 
     def create(self, validated_data):
         user = self.context["request"].user
-        post = self.context["post"]
-        comment = Comment.objects.create(user=user, post=post, **validated_data)
+        post_id = validated_data.pop("post_id", None)
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            raise serializers.ValidationError("Invalid post ID")
+        validated_data["user"] = user
+        validated_data["post"] = post
+
+        comment = Comment.objects.create(**validated_data)
         return comment
 
 
+class LikeSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    post_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = Like
+        fields = (
+            "user",
+            "post_id",
+        )
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        post_id = validated_data.pop("post_id", None)
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            raise serializers.ValidationError("Invalid post ID")
+        validated_data["user"] = user
+        validated_data["post"] = post
+
+        like = Like.objects.create(**validated_data)
+        return like
+
+
 class PostSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-    comments = CommentSerializer(many=True)
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    comments = CommentSerializer(many=True, read_only=True)
+    likes = LikeSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
-        fields = ("user", "post_image", "post_description", "created_at", "comments")
+        fields = (
+            "user",
+            "post_image",
+            "post_description",
+            "created_at",
+            "comments",
+            "likes",
+        )
+        read_only_fields = (
+            "user",
+            "created_at",
+        )
 
     def create(self, validated_data):
-        user_data = validated_data.pop("user")
-        user = User.objects.create(**user_data)
+        user = self.context["request"].user
+        validated_data.pop("user")
         post = Post.objects.create(user=user, **validated_data)
         return post
 
     def update(self, instance, validated_data):
-        user_data = validated_data.pop("user")
+        user_data = validated_data.pop("user", None)
         user_serializer = self.fields["user"]
         user_instance = instance.user
 
@@ -96,20 +141,15 @@ class PostListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ("user", "post_image", "post_description", "created_at")
-
-
-class LikeSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-    post = PostSerializer(read_only=True)
-
-    class Meta:
-        model = Like
-        fields = "__all__"
+        read_only_fields = (
+            "user",
+            "created_at",
+        )
 
 
 class ProfileDetailSerializer(serializers.ModelSerializer):
     user = UserSerializer()
-    posts = PostSerializer(many=True, read_only=True)
+    posts = PostSerializer(many=True, read_only=True)  # Add this line
 
     class Meta:
         model = Profile
