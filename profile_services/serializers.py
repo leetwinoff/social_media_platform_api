@@ -82,6 +82,7 @@ class LikeSerializer(serializers.ModelSerializer):
             post = Post.objects.get(id=post_id)
         except Post.DoesNotExist:
             raise serializers.ValidationError("Invalid post ID")
+
         validated_data["user"] = user
         validated_data["post"] = post
 
@@ -149,7 +150,9 @@ class PostListSerializer(serializers.ModelSerializer):
 
 class ProfileDetailSerializer(serializers.ModelSerializer):
     user = UserSerializer()
-    posts = PostSerializer(many=True, read_only=True)  # Add this line
+    posts = PostSerializer(many=True, read_only=True)
+    followers = UserSerializer(many=True, read_only=True)
+    following = UserSerializer(many=True, read_only=True)
 
     class Meta:
         model = Profile
@@ -159,5 +162,34 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
             "profile_picture",
             "bio",
             "posts",
+            "followers",
+            "following",
         )
-        read_only_fields = ("user.email",)
+
+
+class ProfileDetailUpdateSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    posts = PostSerializer(many=True, read_only=True)
+    followers = UserSerializer(many=True, read_only=True)
+    following = UserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Profile
+        fields = (
+            "id",
+            "user",
+            "profile_picture",
+            "bio",
+            "posts",
+            "followers",
+            "following",
+        )
+        read_only_fields = ("id", "user", "posts")
+
+    def update(self, instance, validated_data):
+        instance.profile_picture = validated_data.get(
+            "profile_picture", instance.profile_picture
+        )
+        instance.bio = validated_data.get("bio", instance.bio)
+        instance.save()
+        return instance
