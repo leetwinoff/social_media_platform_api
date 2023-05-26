@@ -22,6 +22,8 @@ class Profile(models.Model):
     )
     bio = models.TextField(blank=True)
     posts = models.ManyToManyField("Post", related_name="profiles", blank=True)
+    followers = models.ManyToManyField(User, related_name="followers", blank=True)
+    following = models.ManyToManyField(User, related_name="following", blank=True)
 
     def __str__(self):
         return self.user.username
