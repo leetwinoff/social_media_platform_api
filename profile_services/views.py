@@ -18,6 +18,7 @@ from profile_services.serializers import (
     ProfileDetailSerializer,
     ProfileDetailUpdateSerializer,
     PostDetailSerializer,
+    FollowUnfollowSerializer,
 )
 
 
@@ -30,10 +31,12 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "list":
             return ProfileListSerializer
-        if self.action == "retrieve":
+        elif self.action == "retrieve":
             if self.get_object().user == self.request.user:
                 return ProfileDetailUpdateSerializer
             return ProfileDetailSerializer
+        elif self.action in ["follow", "unfollow"]:
+            return FollowUnfollowSerializer
         return ProfileSerializer
 
     def get_queryset(self):
@@ -77,6 +80,12 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def follow(self, request, pk=None):
         profile = self.get_object()
         user = request.user
+
+        if profile.user == user:
+            return Response(
+                {"detail": "You cannot follow your own profile."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         profile.followers.add(user)
         profile.save()
@@ -131,6 +140,10 @@ class PostViewSet(viewsets.ModelViewSet):
                 return PostSerializer
             else:
                 return PostDetailSerializer
+        elif self.action == "add_comment":
+            return CommentSerializer
+        elif self.action in ["add_like", "remove_like"]:
+            return LikeSerializer
         return super().get_serializer_class()
 
     def perform_create(self, serializer):
@@ -172,25 +185,27 @@ class PostViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    @action(detail=True, methods=["post"])
+    def add_comment(self, request, pk=None):
+        post = self.get_object()
+        user = request.user
 
-class CommentViewSet(viewsets.ModelViewSet):
-    queryset = Comment.objects.all()
-    serializer_class = CommentSerializer
-    authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
+        comment_content = request.data.get("content", "")
+        comment = Comment.objects.create(user=user, post=post, content=comment_content)
+        post.comments.add(comment)
+        return Response(
+            {"detail": "You leave a comment on this post"}, status=status.HTTP_200_OK
+        )
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
 
-    def create(self, request, *args, **kwargs):
-        post_id = request.data.get("post_id")
-        try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
+        if instance.user != request.user:
             return Response(
-                {"error": "Post does not exist"}, status=status.HTTP_404_NOT_FOUND
+                {
+                    "detail": "You are not allowed to delete this post",
+                },
+                status=status.HTTP_403_FORBIDDEN,
             )
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(user=self.request.user, post=post)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
