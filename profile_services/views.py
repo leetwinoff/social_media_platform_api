@@ -17,6 +17,7 @@ from profile_services.serializers import (
     CommentSerializer,
     ProfileDetailSerializer,
     ProfileDetailUpdateSerializer,
+    PostDetailSerializer,
 )
 
 
@@ -80,8 +81,18 @@ class ProfileViewSet(viewsets.ModelViewSet):
         profile.followers.add(user)
         profile.save()
 
-        serializer = self.get_serializer(profile)
-        return Response(serializer.data)
+        user_profile = user.profile
+        user_profile.following.add(profile.user)
+        user_profile.save()
+
+        profile_serializer = self.get_serializer(profile)
+        user_profile_serializer = ProfileDetailSerializer(user_profile)
+        return Response(
+            {
+                "profile": profile_serializer.data,
+                "user_profile": user_profile_serializer.data,
+            }
+        )
 
     @action(detail=True, methods=["post"])
     def unfollow(self, request, pk=None):
@@ -91,8 +102,18 @@ class ProfileViewSet(viewsets.ModelViewSet):
         profile.followers.remove(user)
         profile.save()
 
-        serializer = self.get_serializer(profile)
-        return Response(serializer.data)
+        user_profile = user.profile
+        user_profile.following.remove(profile.user)
+        user_profile.save()
+
+        profile_serializer = self.get_serializer(profile)
+        user_profile_serializer = ProfileDetailSerializer(user_profile)
+        return Response(
+            {
+                "profile": profile_serializer.data,
+                "user_profile": user_profile_serializer.data,
+            }
+        )
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -104,47 +125,52 @@ class PostViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "list":
             return PostListSerializer
-        return PostSerializer
+        elif self.action == "retrieve":
+            post = self.get_object()
+            if post.user == self.request.user:
+                return PostSerializer
+            else:
+                return PostDetailSerializer
+        return super().get_serializer_class()
 
     def perform_create(self, serializer):
         post = serializer.save(user=self.request.user)
         profile = Profile.objects.get(user=self.request.user)
         profile.posts.add(post)
 
+    @action(detail=True, methods=["post"])
+    def add_like(self, request, pk=None):
+        post = self.get_object()
+        user = request.user
 
-class LikeViewSet(
-    viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.DestroyModelMixin
-):
-    queryset = Like.objects.all()
-    serializer_class = LikeSerializer
-    authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
+        if post.likes.filter(user=user).exists():
+            return Response(
+                {"detail": "You have already liked this post."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        like = Like.objects.create(user=user, post=post)
+        post.likes.add(like)
 
-    def create(self, request, *args, **kwargs):
-        post_id = request.data.get("post_id")
+        return Response({"detail": "You liked this post"}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"])
+    def remove_like(self, request, pk=None):
+        post = self.get_object()
+        user = request.user
+
         try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
-            return Response(
-                {"error": "Post does not exist"}, status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(user=self.request.user, post=post)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            like = post.likes.get(user=user)
+            like.delete()
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.user != request.user:
             return Response(
-                {"error": "You are not authorized to delete this like"},
-                status=status.HTTP_403_FORBIDDEN,
+                {"detail": "You unlike this post"}, status=status.HTTP_200_OK
             )
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        except Like.DoesNotExist:
+            return Response(
+                {"detail": "You have not liked this post."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class CommentViewSet(viewsets.ModelViewSet):
