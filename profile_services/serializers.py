@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
 from profile_services.models import Profile, Post, Like, Comment
-from user.models import User
 from user.serializers import UserSerializer
 
 
@@ -64,36 +63,35 @@ class CommentSerializer(serializers.ModelSerializer):
         return comment
 
 
+class UsernameField(serializers.RelatedField):
+    def to_representation(self, value):
+        return value.username
+
+
 class LikeSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-    post_id = serializers.IntegerField(write_only=True)
+    user = UsernameField(read_only=True)
 
     class Meta:
         model = Like
-        fields = (
-            "user",
-            "post_id",
-        )
-
-    def create(self, validated_data):
-        user = self.context["request"].user
-        post_id = validated_data.pop("post_id", None)
-        try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
-            raise serializers.ValidationError("Invalid post ID")
-
-        validated_data["user"] = user
-        validated_data["post"] = post
-
-        like = Like.objects.create(**validated_data)
-        return like
+        fields = ("user",)
 
 
-class PostSerializer(serializers.ModelSerializer):
+class LikeRepresentationMixin:
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        likes = instance.likes.all()
+
+        if likes.count() >= 2:
+            representation["likes"] = f"{likes[0]} and {likes.count() - 1} other users"
+        else:
+            representation["likes"] = LikeSerializer(likes, many=True).data
+
+        return representation
+
+
+class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     comments = CommentSerializer(many=True, read_only=True)
-    likes = LikeSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
@@ -106,8 +104,8 @@ class PostSerializer(serializers.ModelSerializer):
             "likes",
         )
         read_only_fields = (
-            "user",
             "created_at",
+            "likes",
         )
 
     def create(self, validated_data):
@@ -136,12 +134,26 @@ class PostSerializer(serializers.ModelSerializer):
         instance.delete()
 
 
-class PostListSerializer(serializers.ModelSerializer):
+class PostDetailSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
     user = UserSerializer()
+    comments = CommentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
-        fields = ("user", "post_image", "post_description", "created_at")
+        fields = ("user", "post_image", "post_description", "likes", "comments")
+        read_only_fields = (
+            "created_at",
+            "likes",
+        )
+
+
+class PostListSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    likes = LikeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Post
+        fields = ("user", "post_image", "post_description", "likes", "created_at")
         read_only_fields = (
             "user",
             "created_at",
