@@ -4,6 +4,11 @@ from profile_services.models import Profile, Post, Like, Comment
 from user.serializers import UserSerializer
 
 
+class UsernameField(serializers.RelatedField):
+    def to_representation(self, value):
+        return value.username
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
@@ -33,7 +38,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileListSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UsernameField(read_only=True)
 
     class Meta:
         model = Profile
@@ -41,31 +46,12 @@ class ProfileListSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-    post_id = serializers.IntegerField(write_only=True)
+    user = UsernameField(read_only=True)
 
     class Meta:
         model = Comment
-        fields = ["id", "user", "post_id", "content", "created_at"]
+        fields = ["user", "content", "created_at"]
         read_only_fields = ["id", "created_at"]
-
-    def create(self, validated_data):
-        user = self.context["request"].user
-        post_id = validated_data.pop("post_id", None)
-        try:
-            post = Post.objects.get(id=post_id)
-        except Post.DoesNotExist:
-            raise serializers.ValidationError("Invalid post ID")
-        validated_data["user"] = user
-        validated_data["post"] = post
-
-        comment = Comment.objects.create(**validated_data)
-        return comment
-
-
-class UsernameField(serializers.RelatedField):
-    def to_representation(self, value):
-        return value.username
 
 
 class LikeSerializer(serializers.ModelSerializer):
@@ -90,12 +76,13 @@ class LikeRepresentationMixin:
 
 
 class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    user = UsernameField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
         fields = (
+            "id",
             "user",
             "post_image",
             "post_description",
@@ -135,29 +122,25 @@ class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
 
 
 class PostDetailSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UsernameField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
-        fields = ("user", "post_image", "post_description", "likes", "comments")
+        fields = ("id", "user", "post_image", "post_description", "likes", "comments")
         read_only_fields = (
             "created_at",
             "likes",
         )
 
 
-class PostListSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-    likes = LikeSerializer(many=True, read_only=True)
+class PostListSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
+    user = UsernameField(read_only=True)
 
     class Meta:
         model = Post
-        fields = ("user", "post_image", "post_description", "likes", "created_at")
-        read_only_fields = (
-            "user",
-            "created_at",
-        )
+        fields = ("id", "user", "post_image", "post_description", "likes", "created_at")
+        read_only_fields = ("created_at",)
 
 
 class ProfileDetailSerializer(serializers.ModelSerializer):
@@ -205,3 +188,7 @@ class ProfileDetailUpdateSerializer(serializers.ModelSerializer):
         instance.bio = validated_data.get("bio", instance.bio)
         instance.save()
         return instance
+
+
+class FollowUnfollowSerializer(serializers.Serializer):
+    pass
