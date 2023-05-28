@@ -56,7 +56,7 @@ class Like(models.Model):
         unique_together = ["user", "post"]
 
     def __str__(self):
-        return f"Like by {self.user.username} on {self.post.id}"
+        return f"Like by {self.user.username}"
 
 
 class Comment(models.Model):
