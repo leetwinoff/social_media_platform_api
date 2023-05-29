@@ -1,13 +1,12 @@
-from django.db import transaction
-from rest_framework import viewsets, generics, status, mixins, serializers
+from rest_framework import viewsets, status, mixins, serializers
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import F
+from rest_framework.viewsets import GenericViewSet
 
-from profile_services.models import Profile, Post, Like, Comment
-from profile_services.permissions import IsAdminOrIfAuthenticatedReadOnly
+from profile_services.models import Profile, Post, Like, Comment, Tag
 from profile_services.serializers import (
     ProfileSerializer,
     ProfileListSerializer,
@@ -19,6 +18,7 @@ from profile_services.serializers import (
     ProfileDetailUpdateSerializer,
     PostDetailSerializer,
     FollowUnfollowSerializer,
+    TagSerializer,
 )
 
 
@@ -125,25 +125,53 @@ class ProfileViewSet(viewsets.ModelViewSet):
         )
 
 
+class TagViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    GenericViewSet,
+):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+
 class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.all()
+    queryset = Post.objects.prefetch_related("tags")
     serializer_class = PostSerializer
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
+    def get_queryset(self):
+        tags = self.request.query_params.get("tags")
+
+        queryset = self.queryset
+
+        if tags:
+            queryset = queryset.filter(tags__name__icontains=tags)
+
+        return queryset
+
     def get_serializer_class(self):
         if self.action == "list":
             return PostListSerializer
+
         elif self.action == "retrieve":
             post = self.get_object()
             if post.user == self.request.user:
                 return PostSerializer
             else:
                 return PostDetailSerializer
+
         elif self.action == "add_comment":
             return CommentSerializer
+
         elif self.action in ["add_like", "remove_like"]:
             return LikeSerializer
+
+        elif self.action == "add_tag":
+            return TagSerializer
+
         return super().get_serializer_class()
 
     def perform_create(self, serializer):
@@ -196,6 +224,16 @@ class PostViewSet(viewsets.ModelViewSet):
         return Response(
             {"detail": "You leave a comment on this post"}, status=status.HTTP_200_OK
         )
+
+    @action(detail=True, methods=["post"])
+    def add_tag(self, request, pk=None):
+        post = self.get_object()
+
+        tag_name = request.data.get("name", "")
+        tag = Tag.objects.create(post=post, name=tag_name)
+
+        post.tags.add(tag)
+        return Response({"detail": "Tag added to the post"}, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
