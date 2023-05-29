@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from profile_services.models import Profile, Post, Like, Comment
+from profile_services.models import Profile, Post, Like, Comment, Tag
 from user.serializers import UserSerializer
 
 
@@ -75,9 +75,19 @@ class LikeRepresentationMixin:
         return representation
 
 
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ("name",)
+
+    def to_representation(self, instance):
+        return instance.name
+
+
 class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
     user = UsernameField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True)
 
     class Meta:
         model = Post
@@ -86,6 +96,7 @@ class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
             "user",
             "post_image",
             "post_description",
+            "tags",
             "created_at",
             "comments",
             "likes",
@@ -114,6 +125,13 @@ class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
         )
         instance.created_at = validated_data.get("created_at", instance.created_at)
 
+        tags_data = validated_data.pop("tags", None)
+        if tags_data is not None:
+            instance.tags.clear()
+            for tag_data in tags_data:
+                tag, _ = Tag.objects.get_or_create(name=tag_data["name"])
+                instance.tags.add(tag)
+
         instance.save()
         return instance
 
@@ -124,10 +142,19 @@ class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
 class PostDetailSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
     user = UsernameField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
-        fields = ("id", "user", "post_image", "post_description", "likes", "comments")
+        fields = (
+            "id",
+            "user",
+            "post_image",
+            "post_description",
+            "tags",
+            "likes",
+            "comments",
+        )
         read_only_fields = (
             "created_at",
             "likes",
@@ -136,10 +163,19 @@ class PostDetailSerializer(LikeRepresentationMixin, serializers.ModelSerializer)
 
 class PostListSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
     user = UsernameField(read_only=True)
+    tags = TagSerializer(many=True)
 
     class Meta:
         model = Post
-        fields = ("id", "user", "post_image", "post_description", "likes", "created_at")
+        fields = (
+            "id",
+            "user",
+            "post_image",
+            "post_description",
+            "tags",
+            "likes",
+            "created_at",
+        )
         read_only_fields = ("created_at",)
 
 
