@@ -37,10 +37,18 @@ def post_image_file_path(instance, filename):
     return os.path.join("post_images/", filename)
 
 
+class Tag(models.Model):
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+
+
 class Post(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     post_image = models.ImageField(upload_to=post_image_file_path)
     post_description = models.TextField()
+    tags = models.ManyToManyField(Tag)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
