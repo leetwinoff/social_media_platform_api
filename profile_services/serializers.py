@@ -50,8 +50,8 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ["user", "content", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["user", "content"]
+        read_only_fields = ["id"]
 
 
 class LikeSerializer(serializers.ModelSerializer):
@@ -87,7 +87,7 @@ class TagSerializer(serializers.ModelSerializer):
 class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
     user = UsernameField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
-    tags = TagSerializer(many=True)
+    tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
@@ -96,9 +96,9 @@ class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
             "user",
             "post_image",
             "post_description",
-            "tags",
             "created_at",
             "comments",
+            "tags",
             "likes",
         )
         read_only_fields = (
