@@ -1,59 +1,48 @@
-# Social media platform api
+# Social Media Platform API
 
-## Description:
+## Description
 
-You are tasked with building a RESTful API for a social media platform. The API should allow users to create profiles, follow other users, create and retrieve posts, manage likes and comments, and perform basic social media actions.
+### Features
+#### User Profiles
+- Users can create their profiles and provide information such as profile picture and bio.
+- Each user has a unique profile associated with their account.
 
-## Requirements:
+#### Posts
 
-### User Registration and Authentication:
+- Users can create posts by uploading images and adding a description.
+- Posts can be tagged with relevant keywords to categorize content.
+- Users can view a feed of posts from other users.
 
-- Users should be able to register with their email and password to create an account.
-- Users should be able to login with their credentials and receive a token for authentication.
-- Users should be able to logout and invalidate their token.
+#### Likes and Comments
+- Users can like posts to show their appreciation for the content.
+- Users can leave comments on posts to share their thoughts.
 
-### User Profile:
+#### Follow and Unfollow
+- Users can follow other users to stay updated with their posts.
+- Users can unfollow other users to stop receiving updates from them.
 
-- Users should be able to create and update their profile, including profile picture, bio, and other details.
-- Users should be able to retrieve their own profile and view profiles of other users.
-- Users should be able to search for users by username or other criteria.
+## Installation
 
-### Follow/Unfollow:
+```bash
+python3 -m venv venv
+```
+```bash
+source venv/bin/activate
+```
+```bash
+pip install -r requirements.txt 
+```
 
-- Users should be able to follow and unfollow other users.
-- Users should be able to view the list of users they are following and the list of users following them. 
+```python
+# Rename the .env.sample file to .env.
+# Inside the .env file, set the SECRET_KEY variable to a secure secret key for your Django application.
 
-### Post Creation and Retrieval:
+# Make all migrations and run server
 
-- Users should be able to create new posts with text content and optional media attachments (e.g., images). (Adding images is optional task)
-- Users should be able to retrieve their own posts and posts of users they are following.
-- Users should be able to retrieve posts by hashtags or other criteria.
+python manage.py makemigrations
+python manage.py migrate
+python manage.py runserver
+```
 
-### Likes and Comments (Optional):
 
-- Users should be able to like and unlike posts. Users should be able to view the list of posts they have liked. Users should be able to add comments to posts and view comments on posts.
 
-### Schedule Post creation using Celery (Optional):
-
-- Add possibility to schedule Post creation (you can select the time to create the Post before creating of it).
-
-### API Permissions:
-
-- Only authenticated users should be able to perform actions such as creating posts, liking posts, and following/unfollowing users.
-- Users should only be able to update and delete their own posts and comments.
-- Users should only be able to update and delete their own profile.
-
-### API Documentation:
-
-- The API should be well-documented with clear instructions on how to use each endpoint.
-- The documentation should include sample API requests and responses for different endpoints.
-
-### Technical Requirements:
-
-- Use Django and Django REST framework to build the API.
-- Use token-based authentication for user authentication.
-- Use appropriate serializers for data validation and representation.
-- Use appropriate views and viewsets for handling CRUD operations on models.
-- Use appropriate URL routing for different API endpoints.
-- Use appropriate permissions and authentication classes to implement API permissions.
-- Follow best practices for RESTful API design and documentation.
