@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, mixins, serializers
+from rest_framework import viewsets, status, mixins
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -7,6 +7,7 @@ from django.db.models import F
 from rest_framework.viewsets import GenericViewSet
 
 from profile_services.models import Profile, Post, Like, Comment, Tag
+from profile_services.permissions import IsAdminOrIfAuthenticatedReadOnly
 from profile_services.serializers import (
     ProfileSerializer,
     ProfileListSerializer,
@@ -26,7 +27,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAdminOrIfAuthenticatedReadOnly)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -50,31 +51,18 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
 
-        if Profile.objects.filter(user=user).exists():
-            raise serializers.ValidationError("A profile already exists for this user.")
-
         profile = serializer.save(user=user)
 
         posts = Post.objects.filter(user=user)
-        posts.update(user_profile=profile)
+        posts.update(profile=profile)
 
         profile.posts_count = F("posts_count") + posts.count()
         profile.save()
 
     def get_permissions(self):
-        if self.action in ["create", "list"]:
+        if self.action in ["create", "list", "follow", "unfollow"]:
             return []
         return super().get_permissions()
-
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-
-        if instance.user != request.user:
-            return Response(
-                {"detail": "You are not allowed to update this profile."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return super().update(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"])
     def follow(self, request, pk=None):
@@ -133,14 +121,14 @@ class TagViewSet(
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAdminOrIfAuthenticatedReadOnly)
 
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.prefetch_related("tags")
     serializer_class = PostSerializer
     authentication_classes = (TokenAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAdminOrIfAuthenticatedReadOnly)
 
     def get_queryset(self):
         tags = self.request.query_params.get("tags")
@@ -235,15 +223,7 @@ class PostViewSet(viewsets.ModelViewSet):
         post.tags.add(tag)
         return Response({"detail": "Tag added to the post"}, status=status.HTTP_200_OK)
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-
-        if instance.user != request.user:
-            return Response(
-                {
-                    "detail": "You are not allowed to delete this post",
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_permissions(self):
+        if self.action in ["create", "list", "add_like", "remove_like"]:
+            return []
+        return super().get_permissions()
