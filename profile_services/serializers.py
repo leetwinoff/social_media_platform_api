@@ -12,7 +12,12 @@ class UsernameField(serializers.RelatedField):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
-        fields = ("id", "user", "profile_picture", "bio")
+        fields = (
+            "id",
+            "user",
+            "profile_picture",
+            "bio",
+        )
         read_only_fields = ("id",)
 
     def create(self, validated_data):
@@ -25,10 +30,10 @@ class ProfileSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         user = self.context["request"].user
 
-        if instance.user != user:
-            raise serializers.ValidationError(
-                "You are not allowed to update this profile."
-            )
+        # if instance.user != user:
+        #     raise serializers.ValidationError(
+        #         "You are not allowed to update this profile."
+        #     )
         instance.profile_picture = validated_data.get(
             "profile_picture", instance.profile_picture
         )
@@ -108,8 +113,10 @@ class PostSerializer(LikeRepresentationMixin, serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context["request"].user
-        validated_data.pop("user")
-        post = Post.objects.create(user=user, **validated_data)
+        profile = user.profile
+        validated_data["user"] = user
+        validated_data["profile_id"] = profile.id
+        post = Post.objects.create(**validated_data)
         return post
 
     def update(self, instance, validated_data):
