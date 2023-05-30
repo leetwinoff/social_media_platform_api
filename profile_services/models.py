@@ -46,6 +46,7 @@ class Tag(models.Model):
 
 class Post(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     post_image = models.ImageField(upload_to=post_image_file_path)
     post_description = models.TextField()
     tags = models.ManyToManyField(Tag)
